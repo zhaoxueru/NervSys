@@ -32,6 +32,30 @@ use core\ctr\os;
 class linux extends os
 {
     /**
+     * Build background command
+     *
+     * @param string $cmd
+     *
+     * @return string
+     */
+    public static function bg_cmd(string $cmd): string
+    {
+        return $cmd . ' > /dev/null 2>/dev/null &';
+    }
+
+    /**
+     * Build command for proc_open
+     *
+     * @param string $cmd
+     *
+     * @return string
+     */
+    public static function proc_cmd(string $cmd): string
+    {
+        return $cmd;
+    }
+
+    /**
      * Format system output data
      *
      * @param array $data
@@ -73,12 +97,7 @@ class linux extends os
 
         //Execute system command
         exec('cat /proc/' . parent::$env['PHP_PID'] . '/cmdline | strings -1', $output, $status);
-
-        //No authority
-        if (0 !== $status) {
-            debug('Access denied! Please check your authority!');
-            exit;
-        }
+        if (0 !== $status) throw new \Exception('Linux: Access denied!');
 
         //Get CMD
         parent::$env['PHP_CMD'] = implode(' ', $output);
@@ -88,12 +107,7 @@ class linux extends os
 
         //Execute system command
         exec('readlink -f /proc/' . getmypid() . '/exe', $output, $status);
-
-        //No authority
-        if (0 !== $status) {
-            debug('Access denied! Please check your authority!');
-            exit;
-        }
+        if (0 !== $status) throw new \Exception('Linux: Access denied!');
 
         //Get executable path
         parent::$env['PHP_EXE'] = '"' . $output[0] . '"';
@@ -107,7 +121,6 @@ class linux extends os
     public static function sys_info(): void
     {
         $queries = [
-            'lspci | grep -i "eth"',
             'lscpu | grep -E "Architecture|CPU|Thread|Core|Socket|Vendor|Model|Stepping|BogoMIPS|L1|L2|L3"',
             'cat /proc/cpuinfo | grep -E "processor|vendor|family|model|microcode|MHz|cache|physical|address"',
             'dmidecode -t memory'
@@ -117,19 +130,13 @@ class linux extends os
         $output = [];
         foreach ($queries as $query) {
             exec($query, $output, $status);
-
-            //No authority
-            if (0 !== $status) {
-                debug('Access denied! Please check your authority!');
-                exit;
-            }
+            if (0 !== $status) throw new \Exception('Linux: Access denied!');
         }
 
         self::format($output);
 
         $queries = [
             'mac'  => 'ip link show | grep link/ether',
-            'pci'  => 'lspci',
             'disk' => 'lsblk'
         ];
 
@@ -137,18 +144,13 @@ class linux extends os
         foreach ($queries as $key => $query) {
             $value = [];
             exec($query, $value, $status);
-
-            //No authority
-            if (0 !== $status) {
-                debug('Access denied! Please check your authority!');
-                exit;
-            }
+            if (0 !== $status) throw new \Exception('Linux: Access denied!');
 
             $output[$key] = 1 < count($value) ? $value : trim($value[0]);
         }
 
-        if (empty($output)) return;
         parent::$sys = &$output;
+
         unset($queries, $output, $query, $status, $key, $value);
     }
 }
